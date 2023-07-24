@@ -1,0 +1,14 @@
+_bc_priv_exec() {
+	! echo "${COMP_WORDS[@]}" | grep -qE " -- [^ ]{1,} " || return 0
+
+	local count="${#COMP_WORDS[@]}"
+	local last_word="${COMP_WORDS[$count - 1]}"
+
+	if [[ "$last_word" == -* ]] || [[ "${COMP_WORDS[@]}" != *\ --\ * ]]; then
+		COMPREPLY=( $(compgen -W "-- --uid= --gid= --groups= --caps= --no-save-session --no-prompt --keep-env --clear-env --version --help" -- "$last_word" ) )
+	else
+		COMPREPLY+=( $(compgen -d -c -- "$last_word" ) )
+	fi
+}
+
+complete -F _bc_priv_exec priv_exec
