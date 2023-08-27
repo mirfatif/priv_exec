@@ -62,7 +62,7 @@
 
 /////////////////////////////////////////////////////////////////////////
 
-#define VERSION "v0.1"
+#define VERSION "v0.2"
 
 static char *MY_NAME;
 
@@ -842,7 +842,7 @@ static int exec_it(char **argv, bool keep_env, char *env)
 
                     for (; *e; e++)
                     {
-                        if (strncmp(*e, token, strlen(token)))
+                        if (strncmp(*e, token, strlen(token)) || strncmp(*e + strlen(token), "=", 1))
                             continue;
 
                         envp[count++] = *e;
