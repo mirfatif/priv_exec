@@ -62,7 +62,7 @@
 
 /////////////////////////////////////////////////////////////////////////
 
-#define VERSION "v0.2"
+#define VERSION "v0.3"
 
 static char *MY_NAME;
 
@@ -873,6 +873,10 @@ static void make_session_dir(char *dir, size_t size)
 
 static int authenticate(bool save_session, bool pass_prompt)
 {
+    // No need to authenticate if real UID is root, e.g. if run from cron or sudo.
+    if (getuid() == 0)
+        return 0;
+
     char path[128];
 
     if (save_session)
