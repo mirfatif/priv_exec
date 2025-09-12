@@ -60,6 +60,9 @@
 // For open() and flags.
 #include <fcntl.h>
 
+// For basename()
+#include <libgen.h>
+
 /////////////////////////////////////////////////////////////////////////
 
 #define VERSION "v0.3"
