@@ -848,7 +848,23 @@ static int exec_it(char **argv, bool keep_env, char *env)
                         if (strncmp(*e, token, strlen(token)) || strncmp(*e + strlen(token), "=", 1))
                             continue;
 
-                        envp[count++] = *e;
+                        found = false;
+
+                        // Avoid copying duplicate variables
+                        for (int i = 0; i <= count; i++)
+                        {
+                            if (envp[i] == NULL)
+                                break;
+                            else if (!strcmp(envp[i], *e))
+                            {
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        if (!found)
+                            envp[count++] = *e;
+
                         found = true;
                         break;
                     }
@@ -1242,7 +1258,19 @@ int main(int argc, char **argv)
             break;
         case 'k':
             keep_env = true;
-            env = optarg;
+            if (optarg)
+            {
+                if (!env)
+                    env = strdup(optarg);
+                else
+                {
+                    size_t le = strlen(env);
+                    size_t la = strlen(optarg);
+                    env = realloc(env, le + la + 2);
+                    env[le] = ',';
+                    memcpy(env + le + 1, optarg, la + 1);
+                }
+            }
             break;
         case 'c':
             clear_env = true;
@@ -1261,6 +1289,14 @@ int main(int argc, char **argv)
             print_err("Bad opt: %s", argv[optind - 1]);
             return show_usage(false);
         }
+    }
+
+    char new_env[env ? strlen(env) + 1 : 0];
+    if (env)
+    {
+        strcpy(new_env, env);
+        free(env);
+        env = &new_env[0];
     }
 
     bool has_prog = argc != optind;
