@@ -890,6 +890,16 @@ static void make_session_dir(char *dir, size_t size)
     snprintf(dir, size, "/run/%s", MY_NAME);
 }
 
+static char *read_password(char *passwd, size_t size)
+{
+    // Don't let stdio (readline / fread / fgets / getc) read beyond the first "\n".
+    // Or use read() directly. Our exec'd program might be expecting something from pipe.
+    if (!isatty(STDIN_FILENO))
+        setvbuf(stdin, NULL, _IONBF, 0);
+
+    return fgets(passwd, size, stdin);
+}
+
 static int authenticate(bool save_session, bool pass_prompt)
 {
     // No need to authenticate if real UID is root, e.g. if run from cron or sudo.
@@ -974,7 +984,12 @@ static int authenticate(bool save_session, bool pass_prompt)
                     free(buf);
 
                     if (auth)
+                    {
+                        // Cleanup stdin for child
+                        if (!isatty(STDIN_FILENO))
+                            read_password(path, sizeof(path));
                         return 0;
+                    }
                 }
             }
         }
@@ -1022,15 +1037,9 @@ static int authenticate(bool save_session, bool pass_prompt)
         if (tcsetattr(STDIN_FILENO, TCSANOW, &new_tio))
             return print_err_code("tcsetattr()");
     }
-    else
-    {
-        // Don't let stdio (readline / fread / fgets / getc) read beyond the first "\n".
-        // Or use read() directly. Our exec'd program might be expecting something from pipe.
-        setvbuf(stdin, NULL, _IONBF, 0);
-    }
 
     char passwd[32];
-    char *pass = fgets(passwd, sizeof(passwd), stdin);
+    char *pass = read_password(passwd, sizeof(passwd));
 
     if (isatty(STDIN_FILENO) && tcsetattr(STDIN_FILENO, TCSANOW, &old_tio))
         return print_err_code("tcsetattr()");
