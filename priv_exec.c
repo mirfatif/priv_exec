@@ -1003,28 +1003,43 @@ static int authenticate(bool save_session, bool pass_prompt)
         return errno != EACCES ? 1 : print_err("Did you 'setuid u+s' or 'setcap all+ep' me?");
     }
 
-    if (pass_prompt)
-        printf("Password for %s: ", pw->pw_name);
+    struct termios old_tio;
+
+    if (isatty(STDIN_FILENO))
+    {
+        if (pass_prompt)
+            printf("Password for %s: ", pw->pw_name);
+        else
+            printf("...");
+        fflush(stdout);
+
+        if (tcgetattr(STDIN_FILENO, &old_tio))
+            return print_err_code("tcgetattr()");
+
+        struct termios new_tio = old_tio;
+        new_tio.c_lflag &= ~ECHO;
+
+        if (tcsetattr(STDIN_FILENO, TCSANOW, &new_tio))
+            return print_err_code("tcsetattr()");
+    }
     else
-        printf("...");
-    fflush(NULL);
-
-    struct termios old_tio, new_tio;
-    tcgetattr(STDIN_FILENO, &old_tio);
-
-    new_tio = old_tio;
-    new_tio.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL);
-    tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
+    {
+        // Don't let stdio (readline / fread / fgets / getc) read beyond the first "\n".
+        // Or use read() directly. Our exec'd program might be expecting something from pipe.
+        setvbuf(stdin, NULL, _IONBF, 0);
+    }
 
     char passwd[32];
     char *pass = fgets(passwd, sizeof(passwd), stdin);
 
-    tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
+    if (isatty(STDIN_FILENO) && tcsetattr(STDIN_FILENO, TCSANOW, &old_tio))
+        return print_err_code("tcsetattr()");
 
     if (!pass)
         return print_err("Failed to read password");
 
-    print_out("");
+    if (isatty(STDIN_FILENO))
+        print_out("");
 
     // Remove new line char put bt fgets()
     if (strlen(passwd) > 0 && passwd[strlen(passwd) - 1] == '\n')
